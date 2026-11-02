@@ -41,3 +41,45 @@ variable "mock_mode" {
   type        = bool
   default     = true
 }
+
+variable "primary_azs" {
+  description = "Availability zones in the primary region. Passed in (not looked up) so plan works without AWS credentials."
+  type        = list(string)
+  default     = ["us-east-1a", "us-east-1b"]
+}
+
+variable "dr_azs" {
+  description = "Availability zones in the disaster recovery region."
+  type        = list(string)
+  default     = ["us-west-2a", "us-west-2b"]
+}
+
+variable "primary_vpc_cidr" {
+  description = "Address range of the primary VPC. Must be a /16."
+  type        = string
+  default     = "10.10.0.0/16"
+
+  validation {
+    condition     = can(cidrhost(var.primary_vpc_cidr, 0)) && endswith(var.primary_vpc_cidr, "/16")
+    error_message = "primary_vpc_cidr must be a valid /16 CIDR block, e.g. 10.10.0.0/16."
+  }
+}
+
+variable "dr_vpc_cidr" {
+  description = "Address range of the DR VPC. Must be a /16 and must not overlap the primary VPC."
+  type        = string
+  default     = "10.20.0.0/16"
+
+  validation {
+    condition     = can(cidrhost(var.dr_vpc_cidr, 0)) && endswith(var.dr_vpc_cidr, "/16")
+    error_message = "dr_vpc_cidr must be a valid /16 CIDR block, e.g. 10.20.0.0/16."
+  }
+
+  # Two /16 ranges overlap only if they are the same network. Keeping the ranges
+  # distinct means the two regions could be connected later (peering or a
+  # transit gateway) without renumbering anything.
+  validation {
+    condition     = cidrhost(var.dr_vpc_cidr, 0) != cidrhost(var.primary_vpc_cidr, 0)
+    error_message = "dr_vpc_cidr overlaps primary_vpc_cidr. Use a different range for the DR region."
+  }
+}

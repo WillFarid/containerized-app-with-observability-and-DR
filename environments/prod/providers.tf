@@ -30,9 +30,6 @@ provider "aws" {
   }
 }
 
-# The disaster recovery region. Nothing uses this alias yet: step 2 builds the
-# network in this region. Remove the tflint-ignore line below when that lands.
-# tflint-ignore: terraform_unused_declarations
 provider "aws" {
   alias  = "dr"
   region = var.dr_region
