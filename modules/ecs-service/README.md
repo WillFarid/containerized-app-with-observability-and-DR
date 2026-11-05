@@ -28,16 +28,19 @@ No modules.
 | [aws_ecs_task_definition.app](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ecs_task_definition) | resource |
 | [aws_iam_role.execution](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) | resource |
 | [aws_iam_role.task](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) | resource |
+| [aws_iam_role_policy.execution_read_secret](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy) | resource |
 | [aws_iam_role_policy_attachment.execution](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy_attachment) | resource |
 | [aws_security_group.app](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group) | resource |
 | [aws_vpc_security_group_egress_rule.app_https_out](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc_security_group_egress_rule) | resource |
 | [aws_vpc_security_group_ingress_rule.app_from_alb](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc_security_group_ingress_rule) | resource |
 | [aws_iam_policy_document.ecs_tasks_assume](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
+| [aws_iam_policy_document.read_secret](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 
 ## Inputs
 
 | Name | Description | Type | Default | Required |
 | ---- | ----------- | ---- | ------- | :------: |
+| <a name="input_account_id"></a> [account\_id](#input\_account\_id) | AWS account ID. Used to build the exact ARN pattern of the secret. | `string` | n/a | yes |
 | <a name="input_alb_sg_id"></a> [alb\_sg\_id](#input\_alb\_sg\_id) | Security group of the load balancer. It is the only source allowed to reach the tasks. | `string` | n/a | yes |
 | <a name="input_app_port"></a> [app\_port](#input\_app\_port) | Port the app listens on. | `number` | `8080` | no |
 | <a name="input_cpu"></a> [cpu](#input\_cpu) | Task CPU units (256 = 0.25 vCPU). | `number` | `256` | no |
@@ -48,6 +51,8 @@ No modules.
 | <a name="input_name"></a> [name](#input\_name) | Name prefix for all resources, e.g. webapp-prod-primary. IAM is global, so it must be unique per copy. | `string` | n/a | yes |
 | <a name="input_private_subnet_ids"></a> [private\_subnet\_ids](#input\_private\_subnet\_ids) | Private subnets (one per AZ) where tasks run. | `list(string)` | n/a | yes |
 | <a name="input_region"></a> [region](#input\_region) | Region this copy runs in. Used for log settings and reported by the app. | `string` | n/a | yes |
+| <a name="input_secret_kms_key_arn"></a> [secret\_kms\_key\_arn](#input\_secret\_kms\_key\_arn) | ARN of the customer-managed key that encrypts the secret. null when the secret uses the AWS-managed key (as the DR replica does). | `string` | `null` | no |
+| <a name="input_secret_name"></a> [secret\_name](#input\_secret\_name) | Name of the Secrets Manager secret injected into the container as APP\_SECRET. It must exist in this region. | `string` | n/a | yes |
 | <a name="input_tags"></a> [tags](#input\_tags) | Extra tags merged onto resources. | `map(string)` | `{}` | no |
 | <a name="input_target_group_arn"></a> [target\_group\_arn](#input\_target\_group\_arn) | Load balancer target group the service registers tasks with. | `string` | n/a | yes |
 | <a name="input_vpc_id"></a> [vpc\_id](#input\_vpc\_id) | VPC the tasks run in. | `string` | n/a | yes |

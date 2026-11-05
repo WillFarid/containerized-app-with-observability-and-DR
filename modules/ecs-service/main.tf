@@ -48,8 +48,41 @@ resource "aws_iam_role_policy_attachment" "execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
-# The TASK role is the identity of the RUNNING app. It starts with NO
-# permissions. Later steps grant exactly what the app needs and nothing more.
+# Permission to read EXACTLY ONE secret. The ARN pattern ends in six "?" because
+# Secrets Manager appends a random 6-character suffix to every secret ARN. Six
+# single-character wildcards match that suffix and nothing longer, so a secret
+# named "<name>-v2" would NOT match.
+data "aws_iam_policy_document" "read_secret" {
+  statement {
+    sid       = "ReadAppSecret"
+    effect    = "Allow"
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = ["arn:aws:secretsmanager:${var.region}:${var.account_id}:secret:${var.secret_name}-??????"]
+  }
+
+  # Only when the secret uses our own key: permission to decrypt with that one key.
+  dynamic "statement" {
+    for_each = var.secret_kms_key_arn == null ? [] : [var.secret_kms_key_arn]
+
+    content {
+      sid       = "DecryptAppSecret"
+      effect    = "Allow"
+      actions   = ["kms:Decrypt"]
+      resources = [statement.value]
+    }
+  }
+}
+
+resource "aws_iam_role_policy" "execution_read_secret" {
+  name   = "read-app-secret"
+  role   = aws_iam_role.execution.id
+  policy = data.aws_iam_policy_document.read_secret.json
+}
+
+# The TASK role is the identity of the RUNNING app. It has NO permissions, and
+# this app needs none: the secret reaches it through the execution role at start
+# time, and the app itself calls no AWS service. Anything the app might need
+# later is granted here, one narrow statement at a time.
 # Keeping it separate from the execution role means a compromised app cannot
 # use the permissions ECS needs to pull images.
 resource "aws_iam_role" "task" {
@@ -105,6 +138,14 @@ resource "aws_ecs_task_definition" "app" {
       environment = [
         { name = "PORT", value = tostring(var.app_port) },
         { name = "APP_REGION", value = var.region },
+      ]
+
+      # ECS reads the secret when it STARTS the task and hands it to the
+      # container as an environment variable. The value never appears in this
+      # file, in Terraform state, or in the task definition. Only the NAME does.
+      # A name works for a secret in the same region as the task.
+      secrets = [
+        { name = "APP_SECRET", valueFrom = var.secret_name }
       ]
 
       # ECS ignores the Dockerfile HEALTHCHECK, so it is defined here too.

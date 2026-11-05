@@ -81,3 +81,24 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "account_id" {
+  description = "AWS account ID. Used to build the exact ARN pattern of the secret."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[0-9]{12}$", var.account_id))
+    error_message = "account_id must be a 12-digit AWS account ID."
+  }
+}
+
+variable "secret_name" {
+  description = "Name of the Secrets Manager secret injected into the container as APP_SECRET. It must exist in this region."
+  type        = string
+}
+
+variable "secret_kms_key_arn" {
+  description = "ARN of the customer-managed key that encrypts the secret. null when the secret uses the AWS-managed key (as the DR replica does)."
+  type        = string
+  default     = null
+}

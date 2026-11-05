@@ -22,6 +22,7 @@
 | <a name="module_app_primary"></a> [app\_primary](#module\_app\_primary) | ../../modules/ecs-service | n/a |
 | <a name="module_ecr_dr"></a> [ecr\_dr](#module\_ecr\_dr) | ../../modules/ecr | n/a |
 | <a name="module_ecr_primary"></a> [ecr\_primary](#module\_ecr\_primary) | ../../modules/ecr | n/a |
+| <a name="module_secrets"></a> [secrets](#module\_secrets) | ../../modules/secrets | n/a |
 | <a name="module_vpc_dr"></a> [vpc\_dr](#module\_vpc\_dr) | ../../modules/vpc | n/a |
 | <a name="module_vpc_primary"></a> [vpc\_primary](#module\_vpc\_primary) | ../../modules/vpc | n/a |
 
@@ -50,6 +51,7 @@
 
 | Name | Description |
 | ---- | ----------- |
+| <a name="output_app_secret_name"></a> [app\_secret\_name](#output\_app\_secret\_name) | Name of the app secret. Set its value out of band before the first deployment. |
 | <a name="output_dr_vpc_id"></a> [dr\_vpc\_id](#output\_dr\_vpc\_id) | ID of the VPC in the DR region. |
 | <a name="output_ecr_repository_url"></a> [ecr\_repository\_url](#output\_ecr\_repository\_url) | Where to push the image. Replication copies it to the DR region. |
 | <a name="output_primary_alb_dns_name"></a> [primary\_alb\_dns\_name](#output\_primary\_alb\_dns\_name) | DNS name of the primary load balancer. |

@@ -99,6 +99,20 @@ module "ecr_dr" {
 }
 
 # =============================================================================
+# Secret (primary region) with a replica in the DR region
+# =============================================================================
+# The secret is created EMPTY. Its value is set out of band (see the secrets
+# module), so no credential is ever written in code, in Git or in state.
+module "secrets" {
+  source = "../../modules/secrets"
+
+  name        = local.name
+  secret_name = "${local.name}/app-secret" # e.g. webapp-prod/app-secret
+
+  replica_region = var.dr_region
+}
+
+# =============================================================================
 # Primary region: load balancer and the Fargate service
 # =============================================================================
 module "alb_primary" {
@@ -129,6 +143,11 @@ module "app_primary" {
 
   alb_sg_id        = module.alb_primary.security_group_id
   target_group_arn = module.alb_primary.target_group_arn
+
+  # The one secret this service may read, and the key that encrypts it.
+  account_id         = var.account_id
+  secret_name        = module.secrets.secret_name
+  secret_kms_key_arn = module.secrets.kms_key_arn
 
   # An explicit version tag, never "latest". The repository is immutable, so
   # 1.0.0 always means the same image.

@@ -21,3 +21,8 @@ output "primary_alb_dns_name" {
   description = "DNS name of the primary load balancer."
   value       = module.alb_primary.alb_dns_name
 }
+
+output "app_secret_name" {
+  description = "Name of the app secret. Set its value out of band before the first deployment."
+  value       = module.secrets.secret_name
+}
