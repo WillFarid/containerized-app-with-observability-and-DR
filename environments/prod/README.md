@@ -20,6 +20,7 @@
 | ---- | ------ | ------- |
 | <a name="module_alb_primary"></a> [alb\_primary](#module\_alb\_primary) | ../../modules/alb | n/a |
 | <a name="module_app_primary"></a> [app\_primary](#module\_app\_primary) | ../../modules/ecs-service | n/a |
+| <a name="module_backup"></a> [backup](#module\_backup) | ../../modules/backup | n/a |
 | <a name="module_ecr_dr"></a> [ecr\_dr](#module\_ecr\_dr) | ../../modules/ecr | n/a |
 | <a name="module_ecr_primary"></a> [ecr\_primary](#module\_ecr\_primary) | ../../modules/ecr | n/a |
 | <a name="module_monitoring_primary"></a> [monitoring\_primary](#module\_monitoring\_primary) | ../../modules/monitoring | n/a |
@@ -56,6 +57,7 @@
 | Name | Description |
 | ---- | ----------- |
 | <a name="output_app_secret_name"></a> [app\_secret\_name](#output\_app\_secret\_name) | Name of the app secret. Set its value out of band before the first deployment. |
+| <a name="output_backup_vaults"></a> [backup\_vaults](#output\_backup\_vaults) | The backup vaults in the primary and DR regions. |
 | <a name="output_data_bucket_dr"></a> [data\_bucket\_dr](#output\_data\_bucket\_dr) | Name of the replica data bucket in the DR region. |
 | <a name="output_data_bucket_primary"></a> [data\_bucket\_primary](#output\_data\_bucket\_primary) | Name of the primary data bucket. |
 | <a name="output_dr_vpc_id"></a> [dr\_vpc\_id](#output\_dr\_vpc\_id) | ID of the VPC in the DR region. |

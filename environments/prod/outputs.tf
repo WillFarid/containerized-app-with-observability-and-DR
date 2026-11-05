@@ -46,3 +46,11 @@ output "data_bucket_dr" {
   description = "Name of the replica data bucket in the DR region."
   value       = module.storage.replica_bucket_name
 }
+
+output "backup_vaults" {
+  description = "The backup vaults in the primary and DR regions."
+  value = {
+    primary = module.backup.primary_vault_name
+    dr      = module.backup.dr_vault_name
+  }
+}

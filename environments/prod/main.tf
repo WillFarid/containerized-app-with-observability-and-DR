@@ -262,3 +262,32 @@ resource "aws_iam_role_policy" "app_primary_data" {
   role   = module.app_primary.task_role_name
   policy = data.aws_iam_policy_document.app_primary_data.json
 }
+
+# =============================================================================
+# Backup: point-in-time restore and long-term copies, in both regions
+# =============================================================================
+# Replication gives a fast failover but copies mistakes too. Backup keeps history.
+module "backup" {
+  source = "../../modules/backup"
+
+  providers = {
+    aws    = aws
+    aws.dr = aws.dr
+  }
+
+  name          = local.name
+  source_region = var.primary_region
+  account_id    = var.account_id
+
+  bucket_arn = module.storage.source_bucket_arn
+
+  # The backup role may use exactly these two keys: the primary bucket's key to
+  # read the data, and the replica's key for a restore in the DR region.
+  bucket_kms_key_arns = [
+    module.storage.source_kms_key_arn,
+    module.storage.replica_kms_key_arn,
+  ]
+
+  # PLACEHOLDER: the recipient must confirm the subscription by email.
+  alarm_email = "oncall@example.com"
+}
