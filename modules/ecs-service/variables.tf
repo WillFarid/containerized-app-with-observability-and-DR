@@ -102,3 +102,37 @@ variable "secret_kms_key_arn" {
   type        = string
   default     = null
 }
+
+variable "min_capacity" {
+  description = "Fewest tasks autoscaling may run. Keep at least 2 so one task can fail without an outage."
+  type        = number
+  default     = 2
+}
+
+variable "max_capacity" {
+  description = "Most tasks autoscaling may run."
+  type        = number
+  default     = 6
+
+  validation {
+    condition     = var.max_capacity >= 2
+    error_message = "max_capacity must be at least 2."
+  }
+}
+
+variable "cpu_target_percent" {
+  description = "Average CPU utilization autoscaling tries to hold."
+  type        = number
+  default     = 60
+}
+
+variable "requests_per_target" {
+  description = "Requests per task per minute autoscaling tries to hold."
+  type        = number
+  default     = 500
+}
+
+variable "alb_request_label" {
+  description = "Identifies the load balancer and target group for request-based scaling: <alb arn suffix>/<target group arn suffix>."
+  type        = string
+}

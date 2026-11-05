@@ -149,12 +149,18 @@ module "app_primary" {
   secret_name        = module.secrets.secret_name
   secret_kms_key_arn = module.secrets.kms_key_arn
 
+  # Autoscaling: never below 2 tasks (one can fail without an outage), up to 6.
+  min_capacity  = 2
+  max_capacity  = 6
+  desired_count = 2
+
+  # Tells request-based scaling which load balancer and target group to watch.
+  alb_request_label = "${module.alb_primary.alb_arn_suffix}/${module.alb_primary.target_group_arn_suffix}"
+
   # An explicit version tag, never "latest". The repository is immutable, so
   # 1.0.0 always means the same image.
   image    = "${module.ecr_primary.repository_url}:1.0.0"
   app_port = 8080
-
-  desired_count = 2
 
   # The target group must be attached to a listener before a service can
   # register tasks with it. Waiting for the whole load balancer module
@@ -171,4 +177,25 @@ resource "aws_vpc_security_group_egress_rule" "alb_primary_to_app" {
   from_port                    = 8080
   to_port                      = 8080
   referenced_security_group_id = module.app_primary.security_group_id
+}
+
+# =============================================================================
+# Observability (primary region): alarms, notifications and a dashboard
+# =============================================================================
+module "monitoring_primary" {
+  source = "../../modules/monitoring"
+
+  name       = "${local.name}-primary"
+  region     = var.primary_region
+  account_id = var.account_id
+
+  # PLACEHOLDER: the recipient must confirm the subscription by email.
+  alarm_email = "oncall@example.com"
+
+  cluster_name            = module.app_primary.cluster_name
+  service_name            = module.app_primary.service_name
+  alb_arn_suffix          = module.alb_primary.alb_arn_suffix
+  target_group_arn_suffix = module.alb_primary.target_group_arn_suffix
+
+  min_running_tasks = 2
 }

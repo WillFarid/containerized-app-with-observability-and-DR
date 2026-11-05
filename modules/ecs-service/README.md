@@ -22,6 +22,9 @@ No modules.
 
 | Name | Type |
 | ---- | ---- |
+| [aws_appautoscaling_policy.cpu](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/appautoscaling_policy) | resource |
+| [aws_appautoscaling_policy.requests](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/appautoscaling_policy) | resource |
+| [aws_appautoscaling_target.service](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/appautoscaling_target) | resource |
 | [aws_cloudwatch_log_group.app](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudwatch_log_group) | resource |
 | [aws_ecs_cluster.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ecs_cluster) | resource |
 | [aws_ecs_service.app](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ecs_service) | resource |
@@ -41,16 +44,21 @@ No modules.
 | Name | Description | Type | Default | Required |
 | ---- | ----------- | ---- | ------- | :------: |
 | <a name="input_account_id"></a> [account\_id](#input\_account\_id) | AWS account ID. Used to build the exact ARN pattern of the secret. | `string` | n/a | yes |
+| <a name="input_alb_request_label"></a> [alb\_request\_label](#input\_alb\_request\_label) | Identifies the load balancer and target group for request-based scaling: <alb arn suffix>/<target group arn suffix>. | `string` | n/a | yes |
 | <a name="input_alb_sg_id"></a> [alb\_sg\_id](#input\_alb\_sg\_id) | Security group of the load balancer. It is the only source allowed to reach the tasks. | `string` | n/a | yes |
 | <a name="input_app_port"></a> [app\_port](#input\_app\_port) | Port the app listens on. | `number` | `8080` | no |
 | <a name="input_cpu"></a> [cpu](#input\_cpu) | Task CPU units (256 = 0.25 vCPU). | `number` | `256` | no |
+| <a name="input_cpu_target_percent"></a> [cpu\_target\_percent](#input\_cpu\_target\_percent) | Average CPU utilization autoscaling tries to hold. | `number` | `60` | no |
 | <a name="input_desired_count"></a> [desired\_count](#input\_desired\_count) | Starting number of tasks. Autoscaling adjusts it afterwards. | `number` | `2` | no |
 | <a name="input_image"></a> [image](#input\_image) | Full image reference including a version tag, e.g. <repository-url>:1.0.0. Never use latest. | `string` | n/a | yes |
 | <a name="input_log_retention_days"></a> [log\_retention\_days](#input\_log\_retention\_days) | How long to keep container logs in CloudWatch. | `number` | `365` | no |
+| <a name="input_max_capacity"></a> [max\_capacity](#input\_max\_capacity) | Most tasks autoscaling may run. | `number` | `6` | no |
 | <a name="input_memory"></a> [memory](#input\_memory) | Task memory in MiB. Must be a valid pair with cpu. | `number` | `512` | no |
+| <a name="input_min_capacity"></a> [min\_capacity](#input\_min\_capacity) | Fewest tasks autoscaling may run. Keep at least 2 so one task can fail without an outage. | `number` | `2` | no |
 | <a name="input_name"></a> [name](#input\_name) | Name prefix for all resources, e.g. webapp-prod-primary. IAM is global, so it must be unique per copy. | `string` | n/a | yes |
 | <a name="input_private_subnet_ids"></a> [private\_subnet\_ids](#input\_private\_subnet\_ids) | Private subnets (one per AZ) where tasks run. | `list(string)` | n/a | yes |
 | <a name="input_region"></a> [region](#input\_region) | Region this copy runs in. Used for log settings and reported by the app. | `string` | n/a | yes |
+| <a name="input_requests_per_target"></a> [requests\_per\_target](#input\_requests\_per\_target) | Requests per task per minute autoscaling tries to hold. | `number` | `500` | no |
 | <a name="input_secret_kms_key_arn"></a> [secret\_kms\_key\_arn](#input\_secret\_kms\_key\_arn) | ARN of the customer-managed key that encrypts the secret. null when the secret uses the AWS-managed key (as the DR replica does). | `string` | `null` | no |
 | <a name="input_secret_name"></a> [secret\_name](#input\_secret\_name) | Name of the Secrets Manager secret injected into the container as APP\_SECRET. It must exist in this region. | `string` | n/a | yes |
 | <a name="input_tags"></a> [tags](#input\_tags) | Extra tags merged onto resources. | `map(string)` | `{}` | no |

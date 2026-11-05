@@ -26,3 +26,13 @@ output "app_secret_name" {
   description = "Name of the app secret. Set its value out of band before the first deployment."
   value       = module.secrets.secret_name
 }
+
+output "primary_dashboard_name" {
+  description = "Name of the CloudWatch dashboard for the primary region."
+  value       = module.monitoring_primary.dashboard_name
+}
+
+output "primary_alarm_names" {
+  description = "The six alarms for the primary region."
+  value       = module.monitoring_primary.alarm_names
+}
