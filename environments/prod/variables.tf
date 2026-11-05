@@ -83,3 +83,14 @@ variable "dr_vpc_cidr" {
     error_message = "dr_vpc_cidr overlaps primary_vpc_cidr. Use a different range for the DR region."
   }
 }
+
+variable "account_id" {
+  description = "AWS account ID. The default is a documentation placeholder so plan works offline. A real deployment sets TF_VAR_account_id."
+  type        = string
+  default     = "123456789012"
+
+  validation {
+    condition     = can(regex("^[0-9]{12}$", var.account_id))
+    error_message = "account_id must be a 12-digit AWS account ID."
+  }
+}

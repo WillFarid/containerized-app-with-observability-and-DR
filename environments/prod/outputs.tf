@@ -11,3 +11,13 @@ output "dr_vpc_id" {
   description = "ID of the VPC in the DR region."
   value       = module.vpc_dr.vpc_id
 }
+
+output "ecr_repository_url" {
+  description = "Where to push the image. Replication copies it to the DR region."
+  value       = module.ecr_primary.repository_url
+}
+
+output "primary_alb_dns_name" {
+  description = "DNS name of the primary load balancer."
+  value       = module.alb_primary.alb_dns_name
+}
