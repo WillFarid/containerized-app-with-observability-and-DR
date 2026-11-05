@@ -36,3 +36,13 @@ output "primary_alarm_names" {
   description = "The six alarms for the primary region."
   value       = module.monitoring_primary.alarm_names
 }
+
+output "data_bucket_primary" {
+  description = "Name of the primary data bucket."
+  value       = module.storage.source_bucket_name
+}
+
+output "data_bucket_dr" {
+  description = "Name of the replica data bucket in the DR region."
+  value       = module.storage.replica_bucket_name
+}

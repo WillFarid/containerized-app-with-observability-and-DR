@@ -199,3 +199,66 @@ module "monitoring_primary" {
 
   min_running_tasks = 2
 }
+
+# =============================================================================
+# Data: a bucket replicated to the DR region (this defines the 15-minute RPO)
+# =============================================================================
+module "storage" {
+  source = "../../modules/storage"
+
+  # One module, two regions: it creates the primary bucket with the default
+  # provider and the replica bucket with the DR provider.
+  providers = {
+    aws    = aws
+    aws.dr = aws.dr
+  }
+
+  name           = local.name
+  source_region  = var.primary_region
+  replica_region = var.dr_region
+
+  # Must be globally unique in real life; change them if you ever deploy.
+  source_bucket_name  = "webapp-prod-data-primary-replace-me"
+  replica_bucket_name = "webapp-prod-data-dr-replace-me"
+
+  # A replication slower than 15 minutes pages the same people as every other alarm.
+  alarm_topic_arn = module.monitoring_primary.sns_topic_arn
+}
+
+# The running app gets exactly this much access to the bucket: read and write
+# objects under app/, list only that prefix, and use the one key that encrypts
+# them. It lives here because it connects two modules (the app and the bucket).
+data "aws_iam_policy_document" "app_primary_data" {
+  statement {
+    sid       = "ReadWriteAppObjects"
+    effect    = "Allow"
+    actions   = ["s3:GetObject", "s3:PutObject"]
+    resources = ["${module.storage.source_bucket_arn}/app/*"]
+  }
+
+  statement {
+    sid       = "ListAppPrefixOnly"
+    effect    = "Allow"
+    actions   = ["s3:ListBucket"]
+    resources = [module.storage.source_bucket_arn]
+
+    condition {
+      test     = "StringLike"
+      variable = "s3:prefix"
+      values   = ["app/*"]
+    }
+  }
+
+  statement {
+    sid       = "UseDataKey"
+    effect    = "Allow"
+    actions   = ["kms:Decrypt", "kms:GenerateDataKey"]
+    resources = [module.storage.source_kms_key_arn]
+  }
+}
+
+resource "aws_iam_role_policy" "app_primary_data" {
+  name   = "app-data-access"
+  role   = module.app_primary.task_role_name
+  policy = data.aws_iam_policy_document.app_primary_data.json
+}

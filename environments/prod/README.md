@@ -24,6 +24,7 @@
 | <a name="module_ecr_primary"></a> [ecr\_primary](#module\_ecr\_primary) | ../../modules/ecr | n/a |
 | <a name="module_monitoring_primary"></a> [monitoring\_primary](#module\_monitoring\_primary) | ../../modules/monitoring | n/a |
 | <a name="module_secrets"></a> [secrets](#module\_secrets) | ../../modules/secrets | n/a |
+| <a name="module_storage"></a> [storage](#module\_storage) | ../../modules/storage | n/a |
 | <a name="module_vpc_dr"></a> [vpc\_dr](#module\_vpc\_dr) | ../../modules/vpc | n/a |
 | <a name="module_vpc_primary"></a> [vpc\_primary](#module\_vpc\_primary) | ../../modules/vpc | n/a |
 
@@ -31,7 +32,9 @@
 
 | Name | Type |
 | ---- | ---- |
+| [aws_iam_role_policy.app_primary_data](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy) | resource |
 | [aws_vpc_security_group_egress_rule.alb_primary_to_app](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc_security_group_egress_rule) | resource |
+| [aws_iam_policy_document.app_primary_data](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 
 ## Inputs
 
@@ -53,6 +56,8 @@
 | Name | Description |
 | ---- | ----------- |
 | <a name="output_app_secret_name"></a> [app\_secret\_name](#output\_app\_secret\_name) | Name of the app secret. Set its value out of band before the first deployment. |
+| <a name="output_data_bucket_dr"></a> [data\_bucket\_dr](#output\_data\_bucket\_dr) | Name of the replica data bucket in the DR region. |
+| <a name="output_data_bucket_primary"></a> [data\_bucket\_primary](#output\_data\_bucket\_primary) | Name of the primary data bucket. |
 | <a name="output_dr_vpc_id"></a> [dr\_vpc\_id](#output\_dr\_vpc\_id) | ID of the VPC in the DR region. |
 | <a name="output_ecr_repository_url"></a> [ecr\_repository\_url](#output\_ecr\_repository\_url) | Where to push the image. Replication copies it to the DR region. |
 | <a name="output_primary_alarm_names"></a> [primary\_alarm\_names](#output\_primary\_alarm\_names) | The six alarms for the primary region. |
