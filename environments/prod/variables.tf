@@ -94,3 +94,15 @@ variable "account_id" {
     error_message = "account_id must be a 12-digit AWS account ID."
   }
 }
+
+variable "hosted_zone_id" {
+  description = "ID of the existing Route 53 hosted zone. The default is a placeholder so plan works offline."
+  type        = string
+  default     = "Z0123456789ABCDEFGHIJ"
+}
+
+variable "app_domain_name" {
+  description = "The name users type. The default is a documentation domain (RFC 2606), not a real one."
+  type        = string
+  default     = "app.example.com"
+}

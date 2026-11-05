@@ -54,3 +54,18 @@ output "backup_vaults" {
     dr      = module.backup.dr_vault_name
   }
 }
+
+output "app_url" {
+  description = "The address users use. Route 53 sends it to whichever region is healthy."
+  value       = "https://${var.app_domain_name}"
+}
+
+output "dr_alb_dns_name" {
+  description = "DNS name of the DR load balancer."
+  value       = module.alb_dr.alb_dns_name
+}
+
+output "primary_health_check_id" {
+  description = "ID of the Route 53 health check that decides when to fail over."
+  value       = module.dns_failover.health_check_id
+}

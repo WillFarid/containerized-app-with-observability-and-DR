@@ -291,3 +291,171 @@ module "backup" {
   # PLACEHOLDER: the recipient must confirm the subscription by email.
   alarm_email = "oncall@example.com"
 }
+
+# =============================================================================
+# DISASTER RECOVERY REGION: a warm standby
+#
+# Warm standby = the full stack already runs in the DR region, scaled down to a
+# minimum (1 task instead of 2). Compare:
+#   pilot light   only data is kept, nothing runs   cheap, but slow to recover
+#   warm standby  everything runs, small             a few minutes to recover
+#   active-active everything runs at full size       fastest, and double the cost
+# Warm standby is the option that can reasonably meet a 10-minute RTO.
+#
+# Everything below uses the SAME modules as the primary region, pointed at the
+# DR region with `providers = { aws = aws.dr }`.
+# =============================================================================
+module "alb_dr" {
+  source = "../../modules/alb"
+
+  providers = {
+    aws = aws.dr
+  }
+
+  name              = "${local.name}-dr"
+  vpc_id            = module.vpc_dr.vpc_id
+  public_subnet_ids = module.vpc_dr.public_subnet_ids
+
+  app_port = 8080
+
+  # PLACEHOLDER: ACM certificates are regional, so the DR region needs its own
+  # certificate for the same domain name.
+  certificate_arn = "arn:aws:acm:us-west-2:123456789012:certificate/00000000-0000-0000-0000-000000000000"
+
+  # Must be globally unique in real life; change it if you ever deploy.
+  access_logs_bucket_name = "webapp-prod-dr-alb-logs-replace-me"
+}
+
+module "app_dr" {
+  source = "../../modules/ecs-service"
+
+  providers = {
+    aws = aws.dr
+  }
+
+  name   = "${local.name}-dr"
+  region = var.dr_region
+
+  vpc_id             = module.vpc_dr.vpc_id
+  private_subnet_ids = module.vpc_dr.private_subnet_ids
+
+  alb_sg_id        = module.alb_dr.security_group_id
+  target_group_arn = module.alb_dr.target_group_arn
+
+  # The image is already here: ECR replication copied it from the primary region.
+  image    = "${module.ecr_dr.repository_url}:1.0.0"
+  app_port = 8080
+
+  # The secret is already here too: the replica has the same name in this region.
+  # It uses the AWS-managed key, so there is no customer key to grant.
+  account_id         = var.account_id
+  secret_name        = module.secrets.secret_name
+  secret_kms_key_arn = null
+
+  # Warm standby: ONE task now, and room to grow to 6 once traffic arrives.
+  # The request-count policy reacts to the first burst of failed-over traffic.
+  min_capacity  = 1
+  max_capacity  = 6
+  desired_count = 1
+
+  alb_request_label = "${module.alb_dr.alb_arn_suffix}/${module.alb_dr.target_group_arn_suffix}"
+
+  depends_on = [module.alb_dr]
+}
+
+# The DR load balancer may send traffic to the DR tasks on the app port only.
+resource "aws_vpc_security_group_egress_rule" "alb_dr_to_app" {
+  provider = aws.dr
+
+  security_group_id            = module.alb_dr.security_group_id
+  description                  = "Forward traffic to the app tasks"
+  ip_protocol                  = "tcp"
+  from_port                    = 8080
+  to_port                      = 8080
+  referenced_security_group_id = module.app_dr.security_group_id
+}
+
+# Alarms and a dashboard for the DR region too. The standby is only useful if
+# someone notices that it is unhealthy BEFORE it is needed.
+module "monitoring_dr" {
+  source = "../../modules/monitoring"
+
+  providers = {
+    aws = aws.dr
+  }
+
+  name       = "${local.name}-dr"
+  region     = var.dr_region
+  account_id = var.account_id
+
+  # PLACEHOLDER: the recipient must confirm the subscription by email.
+  alarm_email = "oncall@example.com"
+
+  cluster_name            = module.app_dr.cluster_name
+  service_name            = module.app_dr.service_name
+  alb_arn_suffix          = module.alb_dr.alb_arn_suffix
+  target_group_arn_suffix = module.alb_dr.target_group_arn_suffix
+
+  # The standby runs one task, so one is the minimum worth alarming on.
+  min_running_tasks = 1
+}
+
+# After a failover the DR tasks work with the REPLICA bucket. The same narrow
+# access as the primary: objects under app/, that one prefix, and the replica key.
+# Note: writes made here are NOT copied back automatically. Returning to the
+# primary region (failback) needs reverse replication. See the runbook.
+data "aws_iam_policy_document" "app_dr_data" {
+  statement {
+    sid       = "ReadWriteAppObjects"
+    effect    = "Allow"
+    actions   = ["s3:GetObject", "s3:PutObject"]
+    resources = ["${module.storage.replica_bucket_arn}/app/*"]
+  }
+
+  statement {
+    sid       = "ListAppPrefixOnly"
+    effect    = "Allow"
+    actions   = ["s3:ListBucket"]
+    resources = [module.storage.replica_bucket_arn]
+
+    condition {
+      test     = "StringLike"
+      variable = "s3:prefix"
+      values   = ["app/*"]
+    }
+  }
+
+  statement {
+    sid       = "UseDataKey"
+    effect    = "Allow"
+    actions   = ["kms:Decrypt", "kms:GenerateDataKey"]
+    resources = [module.storage.replica_kms_key_arn]
+  }
+}
+
+resource "aws_iam_role_policy" "app_dr_data" {
+  name   = "app-data-access"
+  role   = module.app_dr.task_role_name
+  policy = data.aws_iam_policy_document.app_dr_data.json
+}
+
+# =============================================================================
+# Route 53: one name, and the health check decides which region answers
+# =============================================================================
+module "dns_failover" {
+  source = "../../modules/dns-failover"
+
+  name = local.name
+
+  hosted_zone_id = var.hosted_zone_id
+  domain_name    = var.app_domain_name
+
+  primary_alb_dns_name   = module.alb_primary.alb_dns_name
+  primary_alb_zone_id    = module.alb_primary.alb_zone_id
+  secondary_alb_dns_name = module.alb_dr.alb_dns_name
+  secondary_alb_zone_id  = module.alb_dr.alb_zone_id
+
+  # Failover notifications go to the same people as every other alarm. The topic
+  # is in us-east-1, where Route 53 health check metrics live.
+  alarm_topic_arn = module.monitoring_primary.sns_topic_arn
+}
