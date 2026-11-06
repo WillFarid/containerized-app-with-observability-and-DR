@@ -1,0 +1,215 @@
+# -----------------------------------------------------------------------------
+# CI
+# Runs on every pull request and on pushes to main.
+# Works with no AWS account: the provider runs in mock mode and the S3 backend
+# is replaced by a local one inside the runner (same trick as on a laptop).
+# There is no apply workflow here on purpose: this stack bills hourly in two
+# regions. The approval-gated apply pattern lives in the companion CI/CD repository.
+# -----------------------------------------------------------------------------
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Least privilege: read-only by default. A job asks for more only if it needs it.
+permissions:
+  contents: read
+
+# A new push to the same branch cancels the older, now pointless run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TF_VERSION: "1.16.3" # same as the version used locally
+
+jobs:
+  fmt-validate:
+    name: fmt and validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: Format check
+        run: terraform fmt -check -recursive -diff
+
+      - name: Init (no backend)
+        working-directory: environments/prod
+        run: terraform init -backend=false -input=false
+
+      - name: Validate
+        working-directory: environments/prod
+        run: terraform validate
+
+  tflint:
+    name: tflint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: v0.64.0 # same as the version used locally
+
+      - name: Init plugins
+        env:
+          GITHUB_TOKEN: ${{ github.token }} # avoids GitHub API rate limits
+        run: tflint --init --config "$GITHUB_WORKSPACE/.tflint.hcl"
+
+      - name: Lint
+        run: tflint --recursive --config "$GITHUB_WORKSPACE/.tflint.hcl"
+
+  checkov:
+    name: checkov
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Pinned to the version used locally, so results match the laptop.
+      - name: Install checkov
+        run: pip install checkov==3.3.30
+
+      - name: Security scan
+        run: checkov -d modules -d environments/prod --framework terraform --compact --quiet
+
+  app-image:
+    name: build and test the container
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the image
+        run: docker build -t demo-app ./app
+
+      # Start it the way ECS will, and prove the properties the design relies on.
+      - name: Run and check it
+        run: |
+          docker run -d --name demo -p 8080:8080 -e APP_REGION=ci demo-app
+
+          for i in $(seq 1 20); do
+            curl -fs localhost:8080/health && break
+            sleep 1
+          done
+
+          echo "--- health endpoint"
+          curl -fs localhost:8080/health
+
+          echo "--- reports the region it runs in"
+          curl -fs localhost:8080/ | grep -q '"region": "ci"'
+
+          echo "--- runs as a non-root user"
+          test "$(docker exec demo id -u)" = "10001"
+
+          docker rm -f demo
+
+  plan:
+    name: plan (prod)
+    needs: [fmt-validate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write # only this job may comment on pull requests
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: Use a local backend (offline mode)
+        working-directory: environments/prod
+        run: |
+          cat > backend_override.tf <<'EOF'
+          terraform {
+            backend "local" {
+              path = "terraform.tfstate"
+            }
+          }
+          EOF
+
+      - name: Init
+        working-directory: environments/prod
+        run: terraform init -input=false
+
+      - name: Plan
+        working-directory: environments/prod
+        run: terraform plan -input=false -no-color -out=tfplan
+
+      - name: Summarize plan
+        working-directory: environments/prod
+        run: |
+          terraform show -no-color tfplan > plan.txt
+          SUMMARY=$(grep -E '^(Plan:|No changes)' plan.txt || echo "No plan summary found")
+          echo "**Plan (prod):** $SUMMARY" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload full plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: plan-prod
+          path: environments/prod/plan.txt
+          retention-days: 14
+
+      # The full plan is far longer than GitHub's comment limit, so the comment
+      # holds only the summary line. The full text is in the artifact above.
+      - name: Comment on pull request
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('environments/prod/plan.txt', 'utf8');
+            const match = plan.match(/^(Plan:|No changes).*$/m);
+            const summary = match ? match[0] : 'No plan summary found';
+            const marker = '<!-- terraform-plan-prod -->';
+            const body = [
+              marker,
+              '### Terraform plan: prod',
+              '',
+              '**' + summary + '**',
+              '',
+              'Full plan: download the plan-prod artifact from this workflow run.'
+            ].join('\n');
+            const { data: comments } = await github.rest.issues.listComments({
+              ...context.repo,
+              issue_number: context.issue.number
+            });
+            const existing = comments.find(c => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ ...context.repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ ...context.repo, issue_number: context.issue.number, body });
+            }
+
+  # One job that summarizes the rest. Branch protection requires only this one,
+  # so adding or renaming jobs later never breaks the protection rule.
+  ci-passed:
+    name: CI passed
+    if: always()
+    needs: [fmt-validate, tflint, checkov, app-image, plan]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check results
+        run: |
+          echo "Results: ${{ join(needs.*.result, ', ') }}"
+          if [[ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            exit 1
+          fi
