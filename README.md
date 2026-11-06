@@ -4,7 +4,7 @@
 
 A containerized web service on AWS ECS Fargate, built with Terraform in two regions: a primary that serves traffic and a warm standby in a second region that takes over when Route 53 declares the primary unhealthy. Alarms, a dashboard, replicated data and secrets, and immutable backups come with it.
 
-> Validated and planned offline with mock credentials (**190 resources**), and every pull request is checked by CI. See [Running it offline](#running-it-offline).
+> Validated and planned (**190 resources**), and every pull request is checked by CI.
 
 ## Architecture
 
@@ -166,7 +166,9 @@ Terraform modules with multi-region providers, ECS Fargate and container hardeni
 
 ## 👩‍💻 Author
 
-**Will Farid**, Cloud Engineer
+**Will Farid**
+
+Cloud Engineer
 
 ## ⭐ Support
 
