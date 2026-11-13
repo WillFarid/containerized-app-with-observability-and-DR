@@ -2,7 +2,7 @@
 # Dockerfile
 # Small image, no extra packages, runs as a non-root user.
 # -----------------------------------------------------------------------------
-FROM python:3.12-slim
+FROM python:3.15-slim
 
 # Send logs straight to stdout so the ECS log driver ships them to CloudWatch.
 ENV PYTHONUNBUFFERED=1
